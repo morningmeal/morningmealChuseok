@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>한가위 소원 달 포토카드 메이커</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.3.2/gifshot.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            batang: ['"Gowun Batang"', 'serif'],
+            sans: ['Pretendard', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background: radial-gradient(circle at 50% 25%, #151c36 0%, #080b18 55%, #03040a 100%);
+      color: #f1f5f9;
+      user-select: none;
+    }
+    .glass-card {
+      background: rgba(17, 24, 48, 0.72);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 234, 167, 0.12);
+    }
+    canvas { touch-action: none; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased text-slate-100">
+
+  <!-- 헤더 -->
+  <header class="py-4 border-b border-amber-300/10 px-4 flex items-center justify-between max-w-5xl mx-auto w-full">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-500 via-amber-300 to-amber-100 flex items-center justify-center shadow-[0_0_15px_rgba(255,234,167,0.6)] text-amber-950 font-bold text-lg font-batang">
+        
+      </div>
+      <div>
+        <h1 class="font-batang font-bold text-lg text-amber-100 tracking-wide flex items-center gap-2">
+          한가위 달 포토카드
+        </h1>
+        <p class="text-xs text-amber-300/60 font-sans">@meal_writes</p>
+      </div>
+    </div>
+    <!-- 캐시 초기화 리셋 버튼 -->
+    <button onclick="resetToDefault()" class="px-2.5 py-1.5 rounded-lg border border-white/10 hover:border-rose-400/40 bg-slate-900/60 hover:bg-rose-500/10 text-slate-400 hover:text-rose-200 text-xs flex items-center gap-1.5 transition">
+      <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+      <span>처음부터 다시 만들기</span>
+    </button>
+  </header>
+
+  <!-- 메인 레이아웃 -->
+  <main class="flex-1 max-w-5xl mx-auto w-full p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    
+    <!-- 왼쪽: 캔버스 작업 영역 (1:1 비율) -->
+    <div class="lg:col-span-7 flex flex-col items-center gap-3 w-full">
+      <div class="relative w-full max-w-[460px] aspect-square rounded-2xl p-1 bg-gradient-to-b from-amber-400/20 via-transparent to-amber-500/10 shadow-[0_10px_35px_rgba(0,0,0,0.6)]">
+        <canvas id="cardCanvas" width="800" height="800" class="w-full h-full rounded-xl shadow-inner cursor-grab active:cursor-grabbing block"></canvas>
+      </div>
+      <p class="text-xs text-slate-400 flex items-center gap-1">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-300"></i>
+        <span>모든 작업 내용은 브라우저에 자동 저장됩니다.</span>
+      </p>
+    </div>
+
+    <!-- 오른쪽: 설정 패널 -->
+    <div class="lg:col-span-5 w-full flex flex-col gap-4">
+      
+      <!-- 탭 버튼 -->
+      <div class="grid grid-cols-4 p-1 glass-card rounded-xl text-xs font-medium text-slate-300 gap-1">
+        <button id="tabBtn-photo" onclick="switchTab('photo')" class="py-2.5 rounded-lg flex flex-col items-center gap-1 transition bg-amber-400/20 text-amber-200 shadow-sm font-semibold">
+          <i data-lucide="image" class="w-4 h-4"></i><span>사진</span>
+        </button>
+        <button id="tabBtn-text" onclick="switchTab('text')" class="py-2.5 rounded-lg flex flex-col items-center gap-1 transition hover:text-white">
+          <i data-lucide="type" class="w-4 h-4"></i><span>문구</span>
+        </button>
+        <button id="tabBtn-sticker" onclick="switchTab('sticker')" class="py-2.5 rounded-lg flex flex-col items-center gap-1 transition hover:text-white">
+          <i data-lucide="smile" class="w-4 h-4"></i><span>스티커</span>
+        </button>
+        <button id="tabBtn-export" onclick="switchTab('export')" class="py-2.5 rounded-lg flex flex-col items-center gap-1 transition hover:text-white">
+          <i data-lucide="download" class="w-4 h-4"></i><span>저장</span>
+        </button>
+      </div>
+
+      <!-- 탭 내용 영역 -->
+      <div class="glass-card rounded-2xl p-5 shadow-xl min-h-[380px] flex flex-col justify-between">
+        
+        <!-- 1. 사진 탭 -->
+        <div id="tabContent-photo" class="space-y-5">
+          <div>
+            <h2 class="text-sm font-semibold text-amber-100 flex items-center gap-2 mb-1 font-batang">
+              <i data-lucide="upload-cloud" class="w-4 h-4 text-amber-300"></i> 합성될 사진
+            </h2>
+            <p class="text-xs text-slate-400">사진이 자연스럽게 합성됩니다.</p>
+          </div>
+
+          <div class="space-y-3">
+            <label for="photoUpload" class="flex flex-col items-center justify-center p-8 border-2 border-dashed border-amber-300/30 hover:border-amber-300/60 rounded-xl cursor-pointer bg-slate-900/40 hover:bg-slate-900/70 transition group">
+              <i data-lucide="camera" class="w-8 h-8 text-amber-300/80 mb-2 group-hover:scale-110 transition"></i>
+              <span class="text-xs font-semibold text-amber-100">클릭하여 사진 선택</span>
+            </label>
+            <input type="file" id="photoUpload" accept="image/*" class="hidden">
+
+            <button onclick="openPhotoCropModal()" class="w-full py-2.5 px-3 rounded-lg border border-amber-300/20 bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 text-xs flex items-center justify-center gap-2 transition">
+              <i data-lucide="crop" class="w-4 h-4"></i> 사진 크기/위치 다시 맞추기
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. 문구 탭 -->
+        <div id="tabContent-text" class="space-y-4 hidden">
+          <div>
+            <h2 class="text-sm font-semibold text-amber-100 flex items-center gap-2 mb-1 font-batang">
+              <i data-lucide="quote" class="w-4 h-4 text-amber-300"></i> 문구
+            </h2>
+          </div>
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs text-slate-300 block mb-1">첫 번째 줄</label>
+              <input type="text" id="textLine1" maxlength="28" value="풍성하고 따뜻한 한가위 보내세요" class="w-full bg-slate-900/90 border border-amber-300/30 rounded-lg px-3 py-2 text-sm text-amber-100 focus:outline-none focus:border-amber-400 font-batang">
+            </div>
+            <div>
+              <label class="text-xs text-slate-300 block mb-1">두 번째 줄</label>
+              <input type="text" id="textLine2" maxlength="32" value="보름달처럼 꽉 찬 행복이 함께하길 기원합니다" class="w-full bg-slate-900/90 border border-amber-300/20 rounded-lg px-3 py-2 text-xs text-amber-100/90 focus:outline-none focus:border-amber-400 font-batang">
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. 스티커 탭 -->
+        <div id="tabContent-sticker" class="space-y-4 hidden">
+          <div>
+            <h2 class="text-sm font-semibold text-amber-100 flex items-center gap-2 mb-1 font-batang">
+              <i data-lucide="sparkles" class="w-4 h-4 text-amber-300"></i> 꾸밈 요소 추가
+            </h2>
+            <p class="text-xs text-slate-400">원하는 스티커 이미지를 올려 자유롭게 꾸며보세요.</p>
+          </div>
+          
+          <label for="customStickerUpload" class="w-full py-6 px-3 rounded-xl border border-dashed border-amber-300/30 hover:border-amber-300/60 bg-slate-900/50 hover:bg-slate-900/80 text-amber-200 text-sm flex flex-col items-center justify-center gap-2 cursor-pointer transition">
+            <i data-lucide="plus-circle" class="w-6 h-6"></i>
+            <span>내 이미지로 스티커 추가하기</span>
+            <input type="file" id="customStickerUpload" accept="image/*" class="hidden">
+          </label>
+
+          <div class="flex justify-between items-center text-[11px] text-slate-400 pt-2">
+            <span>삭제: [Delete] 키 또는 우측 상단 X 아이콘</span>
+            <button onclick="clearAllStickers()" class="text-rose-300/70 hover:text-rose-300 underline">모두 비우기</button>
+          </div>
+        </div>
+
+        <!-- 4. 저장 탭 -->
+        <div id="tabContent-export" class="space-y-4 hidden">
+          <div>
+            <h2 class="text-sm font-semibold text-amber-100 flex items-center gap-2 mb-1 font-batang">
+              <i data-lucide="save" class="w-4 h-4 text-amber-300"></i> 이미지 / 움직이는 GIF 저장
+            </h2>
+          </div>
+
+          <div class="space-y-2">
+            <span class="text-[11px] text-amber-300/80 uppercase font-semibold">배경 애니메이션 효과</span>
+            <div class="grid grid-cols-1 gap-2">
+              <label class="flex items-center gap-3 p-3 rounded-xl border border-amber-300/30 bg-slate-900/60 cursor-pointer hover:border-amber-300/60 transition">
+                <input type="radio" name="gifEffect" value="glow" checked class="accent-amber-400">
+                <div class="flex-1">
+                  <div class="text-xs font-semibold text-amber-100">🌕 은은한 달빛 후광</div>
+                  <div class="text-[11px] text-slate-400">보름달의 금빛 아우라가 아주 천천히 숨쉬듯 밝아집니다.</div>
+                </div>
+              </label>
+              <label class="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-slate-900/60 cursor-pointer hover:border-amber-300/40 transition">
+                <input type="radio" name="gifEffect" value="stars" class="accent-amber-400">
+                <div class="flex-1">
+                  <div class="text-xs font-semibold text-amber-100">✨ 밤하늘 별빛</div>
+                  <div class="text-[11px] text-slate-400">달 주위의 은하수 별빛들이 깜빡입니다.</div>
+                </div>
+              </label>
+              <label class="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-slate-900/60 cursor-pointer hover:border-amber-300/40 transition">
+                <input type="radio" name="gifEffect" value="clouds" class="accent-amber-400">
+                <div class="flex-1">
+                  <div class="text-xs font-semibold text-amber-100">☁️ 몽환적인 밤구름</div>
+                  <div class="text-[11px] text-slate-400">부드러운 밤구름이 보름달을 감싸며 유영합니다.</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-white/10 flex flex-col gap-2.5">
+            <button onclick="downloadPNG()" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition transform active:scale-95">
+              <i data-lucide="image-down" class="w-4 h-4"></i> 정적 이미지 (PNG) 다운로드
+            </button>
+            <button onclick="generateAndDownloadGIF()" class="w-full py-3 rounded-xl border border-amber-300/40 bg-slate-900 hover:bg-slate-800 text-amber-200 font-semibold text-xs flex items-center justify-center gap-2 shadow-md transition transform active:scale-95">
+              <i data-lucide="film" class="w-4 h-4 text-amber-300"></i> 움직이는 엽서 (GIF) 만들기
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- 사진 편집 모달 -->
+  <div id="cropModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-amber-300/30 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-white/10 pb-3">
+        <h3 class="text-sm font-semibold text-amber-100 font-batang flex items-center gap-2">사진 구도 맞추기</h3>
+      </div>
+      <div class="text-[11px] text-slate-300">원을 기준으로 사진을 드래그하고 휠로 크기를 조절하세요.</div>
+      <div class="relative w-full aspect-square bg-black rounded-xl overflow-hidden border border-white/10 flex items-center justify-center">
+        <canvas id="cropCanvas" width="360" height="360" class="w-full h-full cursor-move touch-none"></canvas>
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button onclick="closePhotoCropModal()" class="flex-1 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300">취소</button>
+        <button onclick="applyPhotoCrop()" class="flex-1 py-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-xs text-slate-950 font-bold">적용하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GIF 렌더링 모달 -->
+  <div id="gifModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-amber-300/30 rounded-2xl p-6 max-w-xs w-full text-center space-y-4">
+      <h3 class="text-sm font-bold text-amber-100 font-batang">GIF 렌더링 중...</h3>
+      <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+        <div id="gifProgressBar" class="bg-gradient-to-r from-amber-500 to-amber-300 h-full w-10 transition-all duration-300"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    // 웹 캐시 키
+    const CACHE_KEY = 'chuseok_moon_photocard_v1';
+
+    const cardCanvas = document.getElementById('cardCanvas');
+    const ctx = cardCanvas.getContext('2d');
+    const CW = 800;
+    const CH = 800;
+    const moonCenterX = CW / 2;
+    const moonCenterY = CH * 0.43;
+    const moonRadius = 240;
+
+    const state = {
+      photoImg: null,
+      photoDataUrl: null, // 캐시 저장용 Base64
+      photoScale: 1.0,
+      photoOffsetX: 0,
+      photoOffsetY: 0,
+      textLine1: "풍성하고 따뜻한 한가위 보내세요",
+      textLine2: "보름달처럼 꽉 찬 행복이 함께하길 기원합니다",
+      stickers: [], // { id, img, dataUrl, x, y, width, height, rotation }
+      selectedStickerId: null,
+      tilt: { x: 0, y: 0, targetX: 0, targetY: 0 },
+      currentGifEffect: 'glow',
+      animTime: 0
+    };
+
+    const stars = Array.from({length: 80}).map(() => ({
+      x: Math.random() * CW, y: Math.random() * (CH * 0.8),
+      size: Math.random() * 1.5 + 0.5, phase: Math.random() * Math.PI * 2, speed: 0.03 + Math.random() * 0.03
+    }));
+
+    // 구름 위치 데이터
+    const decorativeClouds = [
+      { x: CW * 0.15, y: moonCenterY - 60, scale: 1.0 },
+      { x: CW * 0.75, y: moonCenterY + 80, scale: 1.3 },
+      { x: CW * 0.85, y: moonCenterY - 40, scale: 0.9 },
+    ];
+
+    let fisheyeCanvas = document.createElement('canvas');
+    let fisheyeCtx = fisheyeCanvas.getContext('2d');
+    let rawPhotoCanvas = document.createElement('canvas');
+    let rawPhotoCtx = rawPhotoCanvas.getContext('2d');
+
+    /* ==========================================================================
+       웹 캐시 (localStorage) 저장 / 복원 로직
+       ========================================================================== */
+    function saveToCache() {
+      try {
+        const payload = {
+          photoDataUrl: state.photoDataUrl,
+          photoScale: state.photoScale,
+          photoOffsetX: state.photoOffsetX,
+          photoOffsetY: state.photoOffsetY,
+          textLine1: state.textLine1,
+          textLine2: state.textLine2,
+          currentGifEffect: state.currentGifEffect,
+          stickers: state.stickers.map(s => ({
+            id: s.id,
+            dataUrl: s.dataUrl,
+            x: s.x,
+            y: s.y,
+            width: s.width,
+            height: s.height,
+            rotation: s.rotation
+          }))
+        };
+        localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
+      } catch (err) {
+        console.warn('캐시 저장 한도 초과 또는 오류:', err);
+      }
+    }
+
+    function loadFromCache() {
+      try {
+        const saved = localStorage.getItem(CACHE_KEY);
+        if (!saved) return false;
+        const data = JSON.parse(saved);
+
+        state.textLine1 = data.textLine1 ?? state.textLine1;
+        state.textLine2 = data.textLine2 ?? state.textLine2;
+        state.currentGifEffect = data.currentGifEffect || 'glow';
+        state.photoScale = data.photoScale || 1.0;
+        state.photoOffsetX = data.photoOffsetX || 0;
+        state.photoOffsetY = data.photoOffsetY || 0;
+
+        // UI 폼 업데이트
+        document.getElementById('textLine1').value = state.textLine1;
+        document.getElementById('textLine2').value = state.textLine2;
+        const effectRadio = document.querySelector(`input[name="gifEffect"][value="${state.currentGifEffect}"]`);
+        if (effectRadio) effectRadio.checked = true;
+
+        // 사진 복원
+        if (data.photoDataUrl) {
+          state.photoDataUrl = data.photoDataUrl;
+          const img = new Image();
+          img.onload = () => {
+            state.photoImg = img;
+            drawMainScene();
+          };
+          img.src = data.photoDataUrl;
+        }
+
+        // 스티커 복원
+        if (data.stickers && Array.isArray(data.stickers)) {
+          state.stickers = [];
+          data.stickers.forEach(sd => {
+            const sImg = new Image();
+            sImg.onload = () => {
+              state.stickers.push({
+                id: sd.id,
+                img: sImg,
+                dataUrl: sd.dataUrl,
+                x: sd.x,
+                y: sd.y,
+                width: sd.width,
+                height: sd.height,
+                rotation: sd.rotation
+              });
+              drawMainScene();
+            };
+            sImg.src = sd.dataUrl;
+          });
+        }
+        return true;
+      } catch (err) {
+        console.warn('캐시 복원 실패:', err);
+        return false;
+      }
+    }
+
+    function resetToDefault() {
+      if (!confirm('작업 중인 모든 내용(사진, 문구, 스티커)을 초기화할까요?')) return;
+      localStorage.removeItem(CACHE_KEY);
+      location.reload();
+    }
+
+    /* ==========================================================================
+       메인 그리기 루프
+       ========================================================================== */
+    function drawMainScene(customAnimTime = null) {
+      const t = customAnimTime !== null ? customAnimTime : state.animTime;
+      ctx.clearRect(0, 0, CW, CH);
+
+      // 1. 밤하늘 배경
+      const skyGrad = ctx.createRadialGradient(moonCenterX, moonCenterY, 50, CW / 2, CH / 2, CW * 0.8);
+      skyGrad.addColorStop(0, '#101732'); skyGrad.addColorStop(1, '#020308');
+      ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, CW, CH);
+
+      // 2. 별빛 효과
+      stars.forEach(st => {
+        let alpha = 0.4 + 0.3 * Math.sin(t * 3 * st.speed + st.phase);
+        if (state.currentGifEffect === 'stars') alpha = 0.2 + 0.8 * Math.pow(Math.sin(t * 5 * st.speed + st.phase), 2);
+        ctx.fillStyle = `rgba(255, 244, 200, ${alpha.toFixed(2)})`;
+        ctx.beginPath(); ctx.arc(st.x, st.y, st.size, 0, Math.PI * 2); ctx.fill();
+      });
+
+      // 3. 마우스 반응 하이라이트 시프트
+      state.tilt.x += (state.tilt.targetX - state.tilt.x) * 0.08;
+      state.tilt.y += (state.tilt.targetY - state.tilt.y) * 0.08;
+      const tiltX = state.tilt.x; const tiltY = state.tilt.y;
+
+      // 4. 은은하고 느린 달빛 후광
+      let glowMultiplier = 1.0;
+      if (state.currentGifEffect === 'glow') glowMultiplier = 0.95 + 0.1 * Math.sin(t * 1.5);
+      
+      ctx.save();
+      const outerGlow = ctx.createRadialGradient(moonCenterX, moonCenterY, moonRadius * 0.9, moonCenterX, moonCenterY, moonRadius * 2.2 * glowMultiplier);
+      outerGlow.addColorStop(0, 'rgba(255, 220, 120, 0.4)');
+      outerGlow.addColorStop(0.4, 'rgba(255, 180, 80, 0.15)');
+      outerGlow.addColorStop(1, 'rgba(255, 180, 80, 0)');
+      ctx.fillStyle = outerGlow;
+      ctx.beginPath(); ctx.arc(moonCenterX, moonCenterY, moonRadius * 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+
+      // 뒤쪽 구름
+      if (state.currentGifEffect === 'clouds') renderClouds(t, false);
+
+      // 5. 달 영역 시작 (클리핑)
+      ctx.save();
+      ctx.beginPath(); ctx.arc(moonCenterX, moonCenterY, moonRadius, 0, Math.PI * 2); ctx.clip();
+
+      // 5-A. 기본 달 표면 (풍성한 황금빛)
+      const moonBodyGrad = ctx.createRadialGradient(
+        moonCenterX - moonRadius * 0.25 + tiltX, 
+        moonCenterY - moonRadius * 0.3 + tiltY, 
+        20, 
+        moonCenterX, 
+        moonCenterY, 
+        moonRadius
+      );
+      moonBodyGrad.addColorStop(0, '#fff4cc');
+      moonBodyGrad.addColorStop(0.4, '#fed330');
+      moonBodyGrad.addColorStop(0.8, '#f39c12');
+      moonBodyGrad.addColorStop(1, '#b75b00');
+      ctx.fillStyle = moonBodyGrad;
+      ctx.fillRect(moonCenterX - moonRadius, moonCenterY - moonRadius, moonRadius * 2, moonRadius * 2);
+
+      // 5-B. 사진 합성 (어안렌즈 미세 왜곡 + 경계 블러링)
+      if (state.photoImg) {
+        renderFisheyePhoto();
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.drawImage(fisheyeCanvas, moonCenterX - moonRadius, moonCenterY - moonRadius);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+
+      // 5-C. 사진 위로 올라오는 3D 구형 하이라이트 & 림 라이트
+      const hX = moonCenterX - moonRadius * 0.32 + tiltX * 1.5;
+      const hY = moonCenterY - moonRadius * 0.35 + tiltY * 1.5;
+      const highlightGrad = ctx.createRadialGradient(hX, hY, 0, hX, hY, moonRadius * 0.85);
+      highlightGrad.addColorStop(0, 'rgba(255, 255, 245, 0.45)');
+      highlightGrad.addColorStop(0.25, 'rgba(255, 245, 200, 0.25)');
+      highlightGrad.addColorStop(0.6, 'rgba(255, 225, 120, 0.08)');
+      highlightGrad.addColorStop(1, 'rgba(255, 225, 120, 0)');
+      ctx.fillStyle = highlightGrad;
+      ctx.fillRect(moonCenterX - moonRadius, moonCenterY - moonRadius, moonRadius * 2, moonRadius * 2);
+
+      const sphereShade = ctx.createRadialGradient(
+        moonCenterX, moonCenterY, moonRadius * 0.65,
+        moonCenterX, moonCenterY, moonRadius
+      );
+      sphereShade.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      sphereShade.addColorStop(0.8, 'rgba(90, 45, 0, 0.25)');
+      sphereShade.addColorStop(1, 'rgba(50, 20, 0, 0.3)');
+      ctx.fillStyle = sphereShade;
+      ctx.fillRect(moonCenterX - moonRadius, moonCenterY - moonRadius, moonRadius * 2, moonRadius * 2);
+
+      ctx.restore(); // 달 영역 클리핑 끝
+
+      // 앞쪽 구름
+      if (state.currentGifEffect === 'clouds') renderClouds(t, true);
+
+      // 6. 스티커 먼저 ➔ 최상단에 문구 & 워터마크
+      renderStickers();
+      renderText();
+    }
+
+    function renderFisheyePhoto() {
+      const size = moonRadius * 2;
+      if (rawPhotoCanvas.width !== size) {
+        rawPhotoCanvas.width = size; rawPhotoCanvas.height = size;
+        fisheyeCanvas.width = size; fisheyeCanvas.height = size;
+      }
+      rawPhotoCtx.clearRect(0, 0, size, size);
+      fisheyeCtx.clearRect(0, 0, size, size);
+
+      const pw = state.photoImg.naturalWidth || state.photoImg.width;
+      const ph = state.photoImg.naturalHeight || state.photoImg.height;
+      const minDim = Math.min(pw, ph);
+      const drawW = (pw / minDim) * size * state.photoScale;
+      const drawH = (ph / minDim) * size * state.photoScale;
+      const drawX = (size / 2) + state.photoOffsetX - drawW / 2;
+      const drawY = (size / 2) + state.photoOffsetY - drawH / 2;
+
+      rawPhotoCtx.drawImage(state.photoImg, drawX, drawY, drawW, drawH);
+
+      const srcData = rawPhotoCtx.getImageData(0, 0, size, size);
+      const dstData = fisheyeCtx.createImageData(size, size);
+      const src = srcData.data;
+      const dst = dstData.data;
+      const cx = size / 2, cy = size / 2;
+      const maxR = size / 2;
+      const strength = 0.18;
+
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const dx = x - cx;
+          const dy = y - cy;
+          const r = Math.sqrt(dx * dx + dy * dy);
+          if (r < maxR) {
+            const normR = r / maxR;
+            const factor = 1 - strength * (1 - normR * normR);
+            const sx = Math.round(cx + dx * factor);
+            const sy = Math.round(cy + dy * factor);
+
+            if (sx >= 0 && sx < size && sy >= 0 && sy < size) {
+              const srcIdx = (sy * size + sx) * 4;
+              const dstIdx = (y * size + x) * 4;
+              dst[dstIdx] = src[srcIdx];
+              dst[dstIdx + 1] = src[srcIdx + 1];
+              dst[dstIdx + 2] = src[srcIdx + 2];
+              dst[dstIdx + 3] = src[srcIdx + 3];
+            }
+          }
+        }
+      }
+      fisheyeCtx.putImageData(dstData, 0, 0);
+
+      fisheyeCtx.globalCompositeOperation = 'destination-in';
+      const featherGrad = fisheyeCtx.createRadialGradient(cx, cy, moonRadius * 0.35, cx, cy, moonRadius * 0.95);
+      featherGrad.addColorStop(0, 'rgba(0,0,0,1)');
+      featherGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      fisheyeCtx.fillStyle = featherGrad;
+      fisheyeCtx.beginPath();
+      fisheyeCtx.arc(cx, cy, moonRadius, 0, Math.PI * 2);
+      fisheyeCtx.fill();
+      fisheyeCtx.globalCompositeOperation = 'source-over';
+    }
+
+    function renderClouds(t, isForeground) {
+      ctx.save();
+      ctx.filter = 'blur(6px)';
+      decorativeClouds.forEach((c, idx) => {
+        if ((idx % 2 === 0) !== isForeground) return;
+        const shiftX = Math.sin(t * 0.6 + idx) * 40;
+        const x = c.x + shiftX;
+        const y = c.y;
+        const scale = c.scale * 1.8;
+
+        ctx.fillStyle = isForeground ? 'rgba(255, 235, 170, 0.45)' : 'rgba(255, 215, 120, 0.28)';
+
+        ctx.beginPath();
+        ctx.arc(x, y, 40 * scale, 0, Math.PI * 2);
+        ctx.arc(x + 40 * scale, y - 15 * scale, 55 * scale, 0, Math.PI * 2);
+        ctx.arc(x + 85 * scale, y + 5 * scale, 42 * scale, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    function renderText() {
+      ctx.save(); ctx.textAlign = 'center';
+      const line1Y = CH * 0.80;
+      ctx.font = 'bold 36px "Gowun Batang", serif';
+      ctx.shadowColor = 'rgba(255, 234, 167, 0.8)'; ctx.shadowBlur = 15;
+      
+      const textGrad = ctx.createLinearGradient(0, line1Y - 25, 0, line1Y + 5);
+      textGrad.addColorStop(0, '#ffffff'); textGrad.addColorStop(1, '#ffd460');
+      ctx.fillStyle = textGrad; ctx.fillText(state.textLine1, CW / 2, line1Y);
+
+      if (state.textLine2) {
+        ctx.shadowBlur = 8; ctx.shadowColor = 'rgba(255, 214, 102, 0.4)';
+        ctx.font = '400 20px "Gowun Batang", serif';
+        ctx.fillStyle = 'rgba(255, 238, 190, 0.9)';
+        ctx.fillText(state.textLine2, CW / 2, line1Y + 40);
+      }
+
+      // @meal_writes 워터마크
+      ctx.shadowBlur = 0;
+      ctx.font = '500 13px Pretendard, sans-serif';
+      ctx.fillStyle = 'rgba(255, 238, 190, 0.45)';
+      ctx.letterSpacing = '1px';
+      ctx.fillText('@meal_writes', CW / 2, CH * 0.94);
+
+      ctx.restore();
+    }
+
+    // 커스텀 스티커 업로드 & 캐시
+    document.getElementById('customStickerUpload').addEventListener('change', (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target.result;
+        const img = new Image();
+        img.onload = () => {
+          const id = 's_' + Date.now();
+          const aspect = img.width / img.height;
+          let w = 120, h = 120;
+          if (aspect >= 1) { w = 120; h = 120 / aspect; } else { h = 120; w = 120 * aspect; }
+          state.stickers.push({ id, img, dataUrl, x: moonCenterX, y: moonCenterY, width: w, height: h, rotation: 0 });
+          state.selectedStickerId = id;
+          saveToCache();
+          drawMainScene();
+        };
+        img.src = dataUrl;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function renderStickers() {
+      state.stickers.forEach(s => {
+        ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.rotation);
+        ctx.drawImage(s.img, -s.width / 2, -s.height / 2, s.width, s.height);
+        if (s.id === state.selectedStickerId) {
+          ctx.strokeStyle = '#ffd460'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
+          ctx.strokeRect(-s.width / 2, -s.height / 2, s.width, s.height);
+          ctx.setLineDash([]);
+          ctx.fillStyle = '#ffd460'; ctx.beginPath(); ctx.arc(s.width/2, s.height/2, 9, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#ff4757'; ctx.beginPath(); ctx.arc(s.width/2, -s.height/2, 9, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('✕', s.width/2, -s.height/2);
+        }
+        ctx.restore();
+      });
+    }
+
+    function clearAllStickers() {
+      state.stickers = [];
+      state.selectedStickerId = null;
+      saveToCache();
+      drawMainScene();
+    }
+
+    let stickerDragState = null;
+    function getCanvasPos(e) {
+      const rect = cardCanvas.getBoundingClientRect();
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      const cy = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: (cx - rect.left) * (CW / rect.width), y: (cy - rect.top) * (CH / rect.height) };
+    }
+    cardCanvas.addEventListener('pointerdown', (e) => {
+      const pos = getCanvasPos(e); let hit = null;
+      for (let i = state.stickers.length - 1; i >= 0; i--) {
+        const s = state.stickers[i];
+        const dx = pos.x - s.x, dy = pos.y - s.y;
+        const cos = Math.cos(-s.rotation), sin = Math.sin(-s.rotation);
+        const lx = dx * cos - dy * sin, ly = dx * sin + dy * cos;
+        if (s.id === state.selectedStickerId) {
+          if (Math.hypot(lx - s.width/2, ly - -s.height/2) < 20) { hit = { sticker: s, handle: 'delete' }; break; }
+          if (Math.hypot(lx - s.width/2, ly - s.height/2) < 20) { hit = { sticker: s, handle: 'transform' }; break; }
+        }
+        if (Math.abs(lx) <= s.width/2 && Math.abs(ly) <= s.height/2) { hit = { sticker: s, handle: 'body' }; break; }
+      }
+      if (hit) {
+        if (hit.handle === 'delete') {
+          state.stickers = state.stickers.filter(s => s.id !== hit.sticker.id);
+          state.selectedStickerId = null;
+          saveToCache();
+        } else {
+          state.selectedStickerId = hit.sticker.id;
+          const s = hit.sticker;
+          if (hit.handle === 'transform') stickerDragState = { mode: 'transform', sticker: s, startAngle: Math.atan2(pos.y-s.y, pos.x-s.x) - s.rotation, startDist: Math.hypot(pos.x-s.x, pos.y-s.y), initialW: s.width, initialH: s.height };
+          else stickerDragState = { mode: 'move', sticker: s, offX: pos.x - s.x, offY: pos.y - s.y };
+        }
+      } else state.selectedStickerId = null;
+      drawMainScene();
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      const rect = cardCanvas.getBoundingClientRect();
+      const cx = (e.clientX - (rect.left + rect.width / 2)) / (rect.width / 2);
+      const cy = (e.clientY - (rect.top + rect.height / 2)) / (rect.height / 2);
+      if (Math.abs(cx) <= 1.5 && Math.abs(cy) <= 1.5) { state.tilt.targetX = cx * 12; state.tilt.targetY = cy * 12; }
+      if (!stickerDragState) return;
+      const pos = getCanvasPos(e); const s = stickerDragState.sticker;
+      if (stickerDragState.mode === 'move') { s.x = pos.x - stickerDragState.offX; s.y = pos.y - stickerDragState.offY; }
+      else if (stickerDragState.mode === 'transform') {
+        s.rotation = Math.atan2(pos.y - s.y, pos.x - s.x) - stickerDragState.startAngle;
+        const ratio = Math.max(0.3, Math.hypot(pos.x - s.x, pos.y - s.y) / stickerDragState.startDist);
+        s.width = stickerDragState.initialW * ratio; s.height = stickerDragState.initialH * ratio;
+      }
+      drawMainScene();
+    });
+
+    window.addEventListener('pointerup', () => {
+      if (stickerDragState) {
+        stickerDragState = null;
+        saveToCache();
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedStickerId && document.activeElement.tagName !== 'INPUT') {
+        state.stickers = state.stickers.filter(s => s.id !== state.selectedStickerId);
+        state.selectedStickerId = null;
+        saveToCache();
+        drawMainScene();
+      }
+    });
+
+    // 사진 크롭 모달
+    const cropCanvas = document.getElementById('cropCanvas');
+    const cropCtx = cropCanvas.getContext('2d');
+    let modalTemp = { scale: 1.0, offsetX: 0, offsetY: 0, isDragging: false, lastX: 0, lastY: 0 };
+    
+    document.getElementById('photoUpload').addEventListener('change', (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target.result;
+        const img = new Image();
+        img.onload = () => {
+          state.photoImg = img;
+          state.photoDataUrl = dataUrl;
+          state.photoScale = 1.0;
+          state.photoOffsetX = 0;
+          state.photoOffsetY = 0;
+          openPhotoCropModal();
+        };
+        img.src = dataUrl;
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    function openPhotoCropModal() {
+      if (!state.photoImg) return;
+      modalTemp = { scale: state.photoScale, offsetX: state.photoOffsetX, offsetY: state.photoOffsetY, isDragging: false };
+      document.getElementById('cropModal').classList.remove('hidden'); drawCropModal();
+    }
+    function closePhotoCropModal() { document.getElementById('cropModal').classList.add('hidden'); }
+    function applyPhotoCrop() {
+      state.photoScale = modalTemp.scale;
+      state.photoOffsetX = modalTemp.offsetX;
+      state.photoOffsetY = modalTemp.offsetY;
+      closePhotoCropModal();
+      saveToCache();
+      drawMainScene();
+    }
+    
+    function drawCropModal() {
+      if (!state.photoImg) return;
+      const W = cropCanvas.width, H = cropCanvas.height, CX = W/2, CY = H/2, R = W*0.44;
+      cropCtx.clearRect(0,0,W,H); cropCtx.fillStyle='#060814'; cropCtx.fillRect(0,0,W,H);
+      const pw = state.photoImg.naturalWidth, ph = state.photoImg.naturalHeight;
+      const drawW = (pw / Math.min(pw, ph)) * (R * 2) * modalTemp.scale;
+      const drawH = (ph / Math.min(pw, ph)) * (R * 2) * modalTemp.scale;
+      cropCtx.drawImage(state.photoImg, CX + modalTemp.offsetX - drawW/2, CY + modalTemp.offsetY - drawH/2, drawW, drawH);
+      cropCtx.save(); cropCtx.beginPath(); cropCtx.rect(0,0,W,H); cropCtx.arc(CX, CY, R, 0, Math.PI*2, true);
+      cropCtx.fillStyle = 'rgba(0,0,0,0.7)'; cropCtx.fill(); cropCtx.strokeStyle='#ffd460'; cropCtx.lineWidth=2;
+      cropCtx.beginPath(); cropCtx.arc(CX, CY, R, 0, Math.PI*2); cropCtx.stroke(); cropCtx.restore();
+    }
+    
+    cropCanvas.addEventListener('pointerdown', (e) => { modalTemp.isDragging = true; modalTemp.lastX = e.clientX; modalTemp.lastY = e.clientY; });
+    window.addEventListener('pointermove', (e) => {
+      if (!modalTemp.isDragging) return;
+      modalTemp.offsetX += (e.clientX - modalTemp.lastX) * (800 / cropCanvas.clientWidth);
+      modalTemp.offsetY += (e.clientY - modalTemp.lastY) * (800 / cropCanvas.clientHeight);
+      modalTemp.lastX = e.clientX; modalTemp.lastY = e.clientY; drawCropModal();
+    });
+    window.addEventListener('pointerup', () => modalTemp.isDragging = false);
+    cropCanvas.addEventListener('wheel', (e) => { e.preventDefault(); modalTemp.scale = Math.min(3.0, Math.max(0.3, modalTemp.scale - e.deltaY * 0.002)); drawCropModal(); });
+
+    // 탭 전환
+    function switchTab(id) {
+      ['photo', 'text', 'sticker', 'export'].forEach(t => {
+        document.getElementById(`tabBtn-${t}`).className = t === id ? "py-2.5 rounded-lg flex flex-col items-center gap-1 transition bg-amber-400/20 text-amber-200 shadow-sm font-semibold" : "py-2.5 rounded-lg flex flex-col items-center gap-1 transition hover:text-white text-slate-400";
+        document.getElementById(`tabContent-${t}`).classList.toggle('hidden', t !== id);
+      });
+      state.selectedStickerId = null; drawMainScene();
+    }
+
+    // 텍스트 & 라디오 변경 시 즉시 캐시 저장
+    document.getElementById('textLine1').addEventListener('input', e => {
+      state.textLine1 = e.target.value;
+      saveToCache();
+      drawMainScene();
+    });
+    document.getElementById('textLine2').addEventListener('input', e => {
+      state.textLine2 = e.target.value;
+      saveToCache();
+      drawMainScene();
+    });
+    document.querySelectorAll('input[name="gifEffect"]').forEach(r => r.addEventListener('change', e => {
+      state.currentGifEffect = e.target.value;
+      saveToCache();
+    }));
+
+    // 파일 다운로드
+    function downloadPNG() { state.selectedStickerId = null; drawMainScene(); const link = document.createElement('a'); link.download = `한가위포토카드_${Date.now()}.png`; link.href = cardCanvas.toDataURL('image/png'); link.click(); }
+    
+    function generateAndDownloadGIF() {
+      state.selectedStickerId = null; drawMainScene();
+      const modal = document.getElementById('gifModal'), pb = document.getElementById('gifProgressBar');
+      modal.classList.remove('hidden'); pb.style.width = '10%';
+      const frames = [], offCanvas = document.createElement('canvas'); offCanvas.width = 400; offCanvas.height = 400;
+      for (let i = 0; i < 15; i++) { drawMainScene((i / 15) * Math.PI * 2); offCanvas.getContext('2d').drawImage(cardCanvas, 0, 0, 400, 400); frames.push(offCanvas.toDataURL('image/png')); }
+      pb.style.width = '50%';
+      gifshot.createGIF({ images: frames, gifWidth: 400, gifHeight: 400, interval: 0.15, numWorkers: 2, progressCallback: p => pb.style.width = `${50 + p * 50}%` }, (obj) => {
+        if (!obj.error) { pb.style.width = '100%'; setTimeout(() => { modal.classList.add('hidden'); const link = document.createElement('a'); link.download = `한가위움직이는카드_${Date.now()}.gif`; link.href = obj.image; link.click(); }, 500); }
+        else { alert('오류가 발생했습니다.'); modal.classList.add('hidden'); }
+      });
+    }
+
+    // 캐시 불러오기 실행
+    loadFromCache();
+
+    function loop() { state.animTime += 0.025; drawMainScene(); requestAnimationFrame(loop); }
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
